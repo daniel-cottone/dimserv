@@ -5,19 +5,23 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 /*
- * Configuration
+ * Server configuration
  */
 #define SERVER_PORT     22000
+#define DOCROOT_DIR     "docroot"
 #define VERSION_STRING  "dimserv/0.0.1"
+
+#define BUFFER_SIZE     1024
 
 int main(int argc, char ** argv)
 {
 
-    char str[100];
+    char str[BUFFER_SIZE];
     int listen_fd, comm_fd;
 
     struct sockaddr_in servaddr;
@@ -39,20 +43,30 @@ int main(int argc, char ** argv)
     while(1)
     {
 
-        bzero(str, 100);
+        bzero(str, BUFFER_SIZE);
 
-        read(comm_fd,str,100);
+        read(comm_fd, str, BUFFER_SIZE);
 
         printf("Received request - %s", str);
 
-        char ret[100];
+        char ret[BUFFER_SIZE];
+
+        char file_contents[BUFFER_SIZE];
+
+        memset(file_contents, 0, BUFFER_SIZE);
+
+        FILE *fp;
+
+        fp = fopen("docroot/index.html", "r");
+
+        fread(file_contents, BUFFER_SIZE, 1, fp);
 
         sprintf(ret, "HTTP/1.1 OK\r\n"
                      "Server: " VERSION_STRING "\r\n"
                      "Content-Type: text/plain\r\n"
                      "Content-Length: %zu\r\n"
                      "\r\n"
-                     "%s\r\n", strlen("Hello, world!"), "Hello, world!");
+                     "%s\r\n", strlen(file_contents), file_contents);
 
         write(comm_fd, ret, strlen(ret)+1);
 
