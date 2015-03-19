@@ -16,14 +16,17 @@
 #define DOCROOT_DIR     "docroot"
 #define VERSION_STRING  "dimserv/0.0.1"
 
-#define BUFFER_SIZE     1024
+/*
+ * Application configuration
+ */
+#define HEADER_SIZE     10240L
+#define BUFFER_SIZE     10240L
 
 int main(int argc, char ** argv)
 {
-
-    char str[BUFFER_SIZE];
+    /* Connection variables */
+    char recv_header[HEADER_SIZE], send_header[HEADER_SIZE];
     int listen_fd, comm_fd;
-
     struct sockaddr_in servaddr;
 
     listen_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -42,33 +45,32 @@ int main(int argc, char ** argv)
 
     while(1)
     {
+        /* Initialize buffers */
+        memset(recv_header, 0, HEADER_SIZE);
+        memset(send_header, 0, HEADER_SIZE);
 
-        bzero(str, BUFFER_SIZE);
+        read(comm_fd, recv_header, HEADER_SIZE);
 
-        read(comm_fd, str, BUFFER_SIZE);
+        printf("Received request - %s", recv_header);
 
-        printf("Received request - %s", str);
+        char file_buffer[BUFFER_SIZE];
 
-        char ret[BUFFER_SIZE];
-
-        char file_contents[BUFFER_SIZE];
-
-        memset(file_contents, 0, BUFFER_SIZE);
+        memset(file_buffer, 0, BUFFER_SIZE);
 
         FILE *fp;
 
-        fp = fopen("docroot/index.html", "r");
+        fp = fopen(DOCROOT_DIR "/index.html", "r");
 
-        fread(file_contents, BUFFER_SIZE, 1, fp);
+        fread(file_buffer, BUFFER_SIZE, 1, fp);
 
-        sprintf(ret, "HTTP/1.1 OK\r\n"
-                     "Server: " VERSION_STRING "\r\n"
-                     "Content-Type: text/plain\r\n"
-                     "Content-Length: %zu\r\n"
-                     "\r\n"
-                     "%s\r\n", strlen(file_contents), file_contents);
+        sprintf(send_header, "HTTP/1.1 OK\r\n"
+                             "Server: " VERSION_STRING "\r\n"
+                             "Content-Type: text/html\r\n"
+                             "Content-Length: %zu\r\n"
+                             "\r\n"
+                             "%s\r\n", strlen(file_buffer), file_buffer);
 
-        write(comm_fd, ret, strlen(ret)+1);
+        write(comm_fd, send_header, strlen(send_header)+1);
 
     }
 }
