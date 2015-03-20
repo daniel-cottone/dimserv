@@ -32,8 +32,47 @@ typedef struct {
   char * http_version;
 } header_t;
 
-int main(int argc, char ** argv)
-{
+/*
+ * Process received headers and output a header_t
+ */
+header_t * process_header(char * recv_header) {
+
+  // Return header, token, and position index
+  header_t * h;
+  char * token;
+  int pos = 0;
+
+  /*
+   * Process header using pos as position index
+   */
+   token = strtok(recv_header, " ");
+   while (token != NULL) {
+     switch(pos) {
+
+       // Process method
+       case 0:
+         if (strcmp(token, "GET")) {
+           h->method = "GET";
+         }
+         else if (strcmp(token, "POST")) {
+           h->method = "POST";
+         }
+         break;
+       default:
+         break;
+     }
+
+     // Move position index and get next token
+     pos = pos+1;
+     token = strtok(NULL, " ");
+   }
+
+   // Return the processed header
+   return h;
+}
+
+int main(int argc, char ** argv) {
+
   /* Connection variables */
   char recv_header[HEADER_SIZE], send_header[HEADER_SIZE];
   int listen_fd, comm_fd;
@@ -54,8 +93,8 @@ int main(int argc, char ** argv)
 
   comm_fd = accept(listen_fd, (struct sockaddr*) NULL, NULL);
 
-  while(1)
-  {
+  while(1) {
+
     /* Initialize buffers and structures */
     memset(recv_header, 0, HEADER_SIZE);
     memset(send_header, 0, HEADER_SIZE);
@@ -66,7 +105,7 @@ int main(int argc, char ** argv)
     printf("Received request - %s", recv_header);
 
     // Stuff to pull file from received header
-    
+
 
     /* Read file into file buffer */
     char file_buffer[BUFFER_SIZE];
