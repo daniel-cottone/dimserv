@@ -130,30 +130,51 @@ int main(int argc, char ** argv) {
     read(comm_fd, recv_header, HEADER_SIZE);
     printf("Received request - %s", recv_header);
 
-    // Stuff to pull file from received header
+    // Process our raw header
     header = process_header(recv_header);
     //printf("Header data: %s %s %s\r\n", header->method, header->filename, header->http_version);
+
+    // Get our MIME type
+    char * mime_type;
+    if (!strcmp(strstr(header->filename, ".html"), ".html")) {
+      mime_type = "text/html";
+    }
+    else if (!strcmp(strstr(header->filename, ".ico"), ".ico")) {
+      mime_type = "image/x-icon";
+    }
+    else {
+      mime_type = "text/plain";
+    }
 
     /* Get the relative file path */
     char * file_path = calloc(sizeof(char) * (strlen(DOCROOT_DIR) + strlen(header->filename) + 2), 1);
     strcat(file_path, DOCROOT_DIR);
     strcat(file_path, header->filename);
 
-    /* Read file into file buffer */
+    /* Try reading file into file buffer */
     char file_buffer[BUFFER_SIZE];
     memset(file_buffer, 0, BUFFER_SIZE);
-    FILE *fp;
+    FILE * fp;
     fp = fopen(file_path, "r");
-    fread(file_buffer, BUFFER_SIZE, 1, fp);
 
-    sprintf(send_header, "HTTP/1.1 OK\r\n"
-                         "Server: " VERSION_STRING "\r\n"
-                         "Content-Type: text/html\r\n"
-                         "Content-Length: %zu\r\n"
-                         "\r\n"
-                         "%s\r\n", strlen(file_buffer), file_buffer);
+    /* Serve our file or 404 */
+    if (!fp) {
+      printf("Could not open file: %s\r\n", file_path);
+      // Do some 404 shit
+    }
+    else {
+      fread(file_buffer, BUFFER_SIZE, 1, fp);
 
-    write(comm_fd, send_header, strlen(send_header)+1);
+      sprintf(send_header, "HTTP/1.1 OK\r\n"
+                           "Server: " VERSION_STRING "\r\n"
+                           "Content-Type: %s\r\n"
+                           "Content-Length: %zu\r\n"
+                           "\r\n"
+                           "%s\r\n", mime_type, strlen(file_buffer), file_buffer);
+
+      write(comm_fd, send_header, strlen(send_header)+1);
+
+    }
 
   }
 }
