@@ -50,30 +50,27 @@ header_t * process_header(char * recv_header) {
 
       // Process method
       case 0:
-        if (strcmp(token, "GET")) {
+        if (strcmp(token, "GET ")) {
           h->method = "GET";
         }
-        else if (strcmp(token, "POST")) {
+        else if (strcmp(token, "POST ")) {
           h->method = "POST";
         }
-        pos = pos+1;
         break;
 
       // Process filename
       case 1:
-        if (strcmp(token, "/")) {
+        if (strcmp(token, "/ ")) {
           h->filename = "/index.html";
         }
         else {
           h->filename = token;
         }
-        pos = pos+1;
         break;
 
       // Process HTTP version
       case 2:
-        h->http_version = token;
-        pos = pos+1;
+        h->http_version = "HTTP/1.1";
         break;
 
       default:
@@ -127,11 +124,14 @@ int main(int argc, char ** argv) {
 
     // Stuff to pull file from received header
     header = process_header(recv_header);
+    printf("Header data: %s %s %s\r\n", header->method, header->filename, header->http_version);
 
     /* Read file into file buffer */
     char file_buffer[BUFFER_SIZE];
     memset(file_buffer, 0, BUFFER_SIZE);
-    char * file_path;
+    //char * file_path = calloc(sizeof(char) * (strlen(DOCROOT_DIR) + strlen(header->filename) + 2), 1);;
+    //strcat(file_path, DOCROOT_DIR);
+    //strcat(file_path, header->filename);
     FILE *fp;
     fp = fopen(DOCROOT_DIR "/index.html", "r");
     fread(file_buffer, BUFFER_SIZE, 1, fp);
