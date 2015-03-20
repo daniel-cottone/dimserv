@@ -34,7 +34,7 @@ typedef struct {
 } header_t;
 
 /*
- * Process received headers and output a header_t
+ * Process received headers and return a header_t
  */
  header_t * process_header(char * recv_header) {
    // Return header, token, and token index
@@ -134,14 +134,16 @@ int main(int argc, char ** argv) {
     header = process_header(recv_header);
     //printf("Header data: %s %s %s\r\n", header->method, header->filename, header->http_version);
 
+    /* Get the relative file path */
+    char * file_path = calloc(sizeof(char) * (strlen(DOCROOT_DIR) + strlen(header->filename) + 2), 1);
+    strcat(file_path, DOCROOT_DIR);
+    strcat(file_path, header->filename);
+
     /* Read file into file buffer */
     char file_buffer[BUFFER_SIZE];
     memset(file_buffer, 0, BUFFER_SIZE);
-    //char * file_path = calloc(sizeof(char) * (strlen(DOCROOT_DIR) + strlen(header->filename) + 2), 1);;
-    //strcat(file_path, DOCROOT_DIR);
-    //strcat(file_path, header->filename);
     FILE *fp;
-    fp = fopen(DOCROOT_DIR "/index.html", "r");
+    fp = fopen(file_path, "r");
     fread(file_buffer, BUFFER_SIZE, 1, fp);
 
     sprintf(send_header, "HTTP/1.1 OK\r\n"
