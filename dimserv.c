@@ -97,6 +97,26 @@ typedef struct {
    return h;
  }
 
+ /*
+  * Generate MIME type from file extension
+  */
+ char * get_mime_type(char * filename) {
+
+   char * mime_type;
+
+   if (!strcmp(strstr(filename, ".html"), ".html")) {
+     mime_type = "text/html";
+   }
+   else if (!strcmp(strstr(filename, ".ico"), ".ico")) {
+     mime_type = "image/x-icon";
+   }
+   else {
+     mime_type = "text/plain";
+   }
+
+   return mime_type;
+ }
+
 int main(int argc, char ** argv) {
 
   /* Connection variables */
@@ -136,15 +156,7 @@ int main(int argc, char ** argv) {
 
     // Get our MIME type
     char * mime_type;
-    if (!strcmp(strstr(header->filename, ".html"), ".html")) {
-      mime_type = "text/html";
-    }
-    else if (!strcmp(strstr(header->filename, ".ico"), ".ico")) {
-      mime_type = "image/x-icon";
-    }
-    else {
-      mime_type = "text/plain";
-    }
+    mime_type = get_mime_type(header->filename);
 
     /* Get the relative file path */
     char * file_path = calloc(sizeof(char) * (strlen(DOCROOT_DIR) + strlen(header->filename) + 2), 1);
