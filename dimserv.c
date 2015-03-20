@@ -36,31 +36,52 @@ typedef struct {
  * Process received headers and output a header_t
  */
 header_t * process_header(char * recv_header) {
-
   // Return header, token, and position index
-  header_t * h;
+  header_t* h = (header_t *) malloc(sizeof(header_t));;
   char * token;
   int pos = 0;
 
   /*
    * Process header using pos as position index
    */
-   token = strtok(recv_header, " ");
-   while (token != NULL) {
-     switch(pos) {
+  token = strtok(recv_header, " ");
+  while (token != NULL) {
+    switch(pos) {
 
-       // Process method
-       case 0:
-         if (strcmp(token, "GET")) {
-           h->method = "GET";
-         }
-         else if (strcmp(token, "POST")) {
-           h->method = "POST";
-         }
-         break;
-       default:
-         break;
-     }
+      // Process method
+      case 0:
+        if (strcmp(token, "GET")) {
+          h->method = "GET";
+        }
+        else if (strcmp(token, "POST")) {
+          h->method = "POST";
+        }
+        pos = pos+1;
+        break;
+
+      // Process filename
+      case 1:
+        if (strcmp(token, "/")) {
+          h->filename = "/index.html";
+        }
+        else {
+          h->filename = token;
+        }
+        pos = pos+1;
+        break;
+
+      // Process HTTP version
+      case 2:
+        h->http_version = token;
+        pos = pos+1;
+        break;
+
+      default:
+        break;
+
+    }
+
+     //printf("Token: %s\r\n", token);
 
      // Move position index and get next token
      pos = pos+1;
@@ -105,11 +126,12 @@ int main(int argc, char ** argv) {
     printf("Received request - %s", recv_header);
 
     // Stuff to pull file from received header
-
+    header = process_header(recv_header);
 
     /* Read file into file buffer */
     char file_buffer[BUFFER_SIZE];
     memset(file_buffer, 0, BUFFER_SIZE);
+    char * file_path;
     FILE *fp;
     fp = fopen(DOCROOT_DIR "/index.html", "r");
     fread(file_buffer, BUFFER_SIZE, 1, fp);
