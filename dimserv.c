@@ -172,11 +172,19 @@ int main(int argc, char ** argv) {
     /* Serve our file or 404 */
     if (!fp) {
       printf("Could not open file: %s\r\n", file_path);
+
       // Do some 404 shit
+      fp = fopen(DOCROOT_DIR "/404.html", "rb");
+      fread(file_buffer, BUFFER_SIZE, 1, fp);
+      sprintf(send_header, "HTTP/1.1 404 File Not Found\r\n"
+                           "Server: " VERSION_STRING "\r\n"
+                           "Content-Type: text/html\r\n"
+                           "Content-Length: %zu\r\n"
+                           "\r\n"
+                           "%s\r\n", strlen(file_buffer), file_buffer);
     }
     else {
       fread(file_buffer, BUFFER_SIZE, 1, fp);
-
       sprintf(send_header, "HTTP/1.1 OK\r\n"
                            "Server: " VERSION_STRING "\r\n"
                            "Content-Type: %s\r\n"
@@ -184,9 +192,9 @@ int main(int argc, char ** argv) {
                            "\r\n"
                            "%s\r\n", mime_type, strlen(file_buffer), file_buffer);
 
-      write(comm_fd, send_header, strlen(send_header)+1);
-
     }
+
+    write(comm_fd, send_header, strlen(send_header)+1);
 
   }
 }
