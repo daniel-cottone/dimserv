@@ -30,64 +30,72 @@ typedef struct {
   char * method;
   char * filename;
   char * http_version;
+  char * host;
 } header_t;
 
 /*
  * Process received headers and output a header_t
  */
-header_t * process_header(char * recv_header) {
-  // Return header, token, and position index
-  header_t* h = (header_t *) malloc(sizeof(header_t));;
-  char * token;
-  int pos = 0;
+ header_t * process_header(char * recv_header) {
+   // Return header, token, and token index
+   header_t* h = (header_t *) malloc(sizeof(header_t));;
+   char * token;
+   int pos = 0;
 
-  /*
-   * Process header using pos as position index
+   /*
+   * Process header using pos as token index
    */
-  token = strtok(recv_header, " ");
-  while (token != NULL) {
-    switch(pos) {
+   token = strtok(recv_header, " \n");
+   while (token != NULL) {
+     switch(pos) {
 
-      // Process method
-      case 0:
-        if (strcmp(token, "GET ")) {
-          h->method = "GET";
-        }
-        else if (strcmp(token, "POST ")) {
-          h->method = "POST";
-        }
-        break;
+       // Process method
+       case 0:
+       if (!strcmp(token, "GET")) {
+         h->method = "GET";
+       }
+       else if (!strcmp(token, "POST")) {
+         h->method = "POST";
+       }
+       break;
 
-      // Process filename
-      case 1:
-        if (strcmp(token, "/ ")) {
-          h->filename = "/index.html";
-        }
-        else {
-          h->filename = token;
-        }
-        break;
+       // Process filename
+       case 1:
+       if (!strcmp(token, "/")) {
+         h->filename = "/index.html";
+       }
+       else {
+         h->filename = token;
+       }
+       break;
 
-      // Process HTTP version
-      case 2:
-        h->http_version = "HTTP/1.1";
-        break;
+       // Process HTTP version
+       case 2:
+       h->http_version = token;
+       break;
 
-      default:
-        break;
+       // Process host
+       case 4:
+       h->host = token;
+       break;
 
-    }
+       // Default
+       default:
+       break;
 
+     }
+
+     // DEBUG
      //printf("Token: %s\r\n", token);
 
-     // Move position index and get next token
+     // Move token index and get next token
      pos = pos+1;
-     token = strtok(NULL, " ");
+     token = strtok(NULL, " \n");
    }
 
    // Return the processed header
    return h;
-}
+ }
 
 int main(int argc, char ** argv) {
 
@@ -124,7 +132,7 @@ int main(int argc, char ** argv) {
 
     // Stuff to pull file from received header
     header = process_header(recv_header);
-    printf("Header data: %s %s %s\r\n", header->method, header->filename, header->http_version);
+    //printf("Header data: %s %s %s\r\n", header->method, header->filename, header->http_version);
 
     /* Read file into file buffer */
     char file_buffer[BUFFER_SIZE];
