@@ -103,15 +103,22 @@ typedef struct {
  char * get_mime_type(char * filename) {
 
    char * mime_type;
+   char * ext = strstr(filename, ".");
 
-   if (!strcmp(strstr(filename, ".html"), ".html")) {
+   if (!strcmp(ext, ".html")) {
      mime_type = "text/html";
    }
-   else if (!strcmp(strstr(filename, ".ico"), ".ico")) {
+   else if (!strcmp(ext, ".css")) {
+     mime_type = "text/css";
+   }
+   else if (!strcmp(ext, ".ico")) {
      mime_type = "image/x-icon";
    }
+   else if (!strcmp(ext, ".png")) {
+     mime_type = "image/png";
+   }
    else {
-     mime_type = "text/plain";
+     mime_type = "text/unknown";
    }
 
    return mime_type;
@@ -173,7 +180,7 @@ int main(int argc, char ** argv) {
     if (!fp) {
       printf("Could not open file: %s\r\n", file_path);
 
-      // Do some 404 shit
+      /* Serve up a 404 */
       fp = fopen(DOCROOT_DIR "/404.html", "rb");
       fread(file_buffer, BUFFER_SIZE, 1, fp);
       sprintf(send_header, "HTTP/1.1 404 File Not Found\r\n"
@@ -185,7 +192,7 @@ int main(int argc, char ** argv) {
     }
     else {
       fread(file_buffer, BUFFER_SIZE, 1, fp);
-      sprintf(send_header, "HTTP/1.1 OK\r\n"
+      sprintf(send_header, "HTTP/1.1 200 OK\r\n"
                            "Server: " VERSION_STRING "\r\n"
                            "Content-Type: %s\r\n"
                            "Content-Length: %zu\r\n"
