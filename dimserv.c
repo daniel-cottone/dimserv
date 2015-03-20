@@ -155,7 +155,7 @@ int main(int argc, char ** argv) {
     char file_buffer[BUFFER_SIZE];
     memset(file_buffer, 0, BUFFER_SIZE);
     FILE * fp;
-    fp = fopen(file_path, "r");
+    fp = fopen(file_path, "rb");
 
     /* Serve our file or 404 */
     if (!fp) {
