@@ -183,11 +183,11 @@ int main(int argc, char ** argv) {
     read(comm_fd, recv_header_buffer, HEADER_SIZE);
     printf("Received request - %s", recv_header_buffer);
 
-    // Process our raw header
+    // Process raw header
     recv_header = process_recv_header(recv_header_buffer);
     //printf("Recv_header data: %s %s %s\r\n", recv_header->method, recv_header->filename, recv_header->http_version);
 
-    // Get our MIME type
+    // Get MIME type
     char * mime_type;
     mime_type = get_mime_type(recv_header->filename);
 
@@ -217,8 +217,14 @@ int main(int argc, char ** argv) {
 
     }
 
+    /* Get size of file */
+    fseek(fp, 0L, SEEK_END);
+		long size = ftell(fp);
+		fseek(fp, 0L, SEEK_SET);
+
     /* Read file and send data to socket */
-    fread(file_buffer, BUFFER_SIZE, 1, fp);
+    fread(file_buffer, 1, BUFFER_SIZE-1, fp);
+    fclose(fp);
     sprintf(send_header_buffer, "HTTP/1.1 %s\r\n"
                                 "Server: " VERSION_STRING "\r\n"
                                 "Content-Type: %s\r\n"
