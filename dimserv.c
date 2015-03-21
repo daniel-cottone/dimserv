@@ -31,21 +31,29 @@ typedef struct {
   char * filename;
   char * http_version;
   char * host;
-} header_t;
+} recv_header_t;
+
+typedef struct {
+  char * status;
+  char * server;
+  char * content_type;
+  char * content_length;
+} send_header_t;
 
 /*
- * Process received headers and return a header_t
+ * Process received headers and return a recv_header_t
  */
- header_t * process_header(char * recv_header) {
+ recv_header_t * process_recv_header(char * recv_header_buffer) {
+
    // Return header, token, and token index
-   header_t* h = (header_t *) malloc(sizeof(header_t));;
+   recv_header_t* h = (recv_header_t *) malloc(sizeof(recv_header_t));
    char * token;
    int pos = 0;
 
    /*
    * Process header using pos as token index
    */
-   token = strtok(recv_header, " \n");
+   token = strtok(recv_header_buffer, " \n");
    while (token != NULL) {
      switch(pos) {
 
@@ -98,6 +106,22 @@ typedef struct {
  }
 
  /*
+  * Generate a send_header_t
+  */
+ send_header_t * generate_send_header(char * status, char * content_type) {
+
+   // Return header
+   send_header_t* h = (send_header_t *) malloc(sizeof(send_header_t));
+
+   // Set header information
+   h->status = status;
+   h->server = VERSION_STRING;
+   h->content_type = content_type;
+
+   return h;
+ }
+
+ /*
   * Generate MIME type from file extension
   */
  char * get_mime_type(char * filename) {
@@ -127,10 +151,11 @@ typedef struct {
 int main(int argc, char ** argv) {
 
   /* Connection variables */
-  char recv_header[HEADER_SIZE], send_header[HEADER_SIZE];
+  char recv_header_buffer[HEADER_SIZE], send_header_buffer[HEADER_SIZE];
   int listen_fd, comm_fd;
   struct sockaddr_in servaddr;
-  header_t * header;
+  recv_header_t * recv_header;
+  send_header_t * send_header;
 
   /* Initialize data structures */
   memset(&servaddr, 0, sizeof(servaddr));
@@ -149,59 +174,59 @@ int main(int argc, char ** argv) {
   while(1) {
 
     /* Initialize buffers and structures */
-    memset(recv_header, 0, HEADER_SIZE);
-    memset(send_header, 0, HEADER_SIZE);
-    memset(&header, 0, sizeof(header));
+    memset(recv_header_buffer, 0, HEADER_SIZE);
+    memset(send_header_buffer, 0, HEADER_SIZE);
+    memset(&recv_header, 0, sizeof(recv_header));
+    memset(&send_header, 0, sizeof(send_header));
 
     /* Receive data from socket */
-    read(comm_fd, recv_header, HEADER_SIZE);
-    printf("Received request - %s", recv_header);
+    read(comm_fd, recv_header_buffer, HEADER_SIZE);
+    printf("Received request - %s", recv_header_buffer);
 
     // Process our raw header
-    header = process_header(recv_header);
-    //printf("Header data: %s %s %s\r\n", header->method, header->filename, header->http_version);
+    recv_header = process_recv_header(recv_header_buffer);
+    //printf("Recv_header data: %s %s %s\r\n", recv_header->method, recv_header->filename, recv_header->http_version);
 
     // Get our MIME type
     char * mime_type;
-    mime_type = get_mime_type(header->filename);
+    mime_type = get_mime_type(recv_header->filename);
 
     /* Get the relative file path */
-    char * file_path = calloc(sizeof(char) * (strlen(DOCROOT_DIR) + strlen(header->filename) + 2), 1);
+    char * file_path = calloc(sizeof(char) * (strlen(DOCROOT_DIR) + strlen(recv_header->filename) + 2), 1);
     strcat(file_path, DOCROOT_DIR);
-    strcat(file_path, header->filename);
+    strcat(file_path, recv_header->filename);
 
-    /* Try reading file into file buffer */
+    /* Create file buffer, pointer, and open file */
     char file_buffer[BUFFER_SIZE];
     memset(file_buffer, 0, BUFFER_SIZE);
     FILE * fp;
     fp = fopen(file_path, "rb");
 
-    /* Serve our file or 404 */
+    /* Check if the file was opened */
     if (!fp) {
-      printf("Could not open file: %s\r\n", file_path);
 
       /* Serve up a 404 */
+      printf("Could not open file: %s\r\n", file_path);
       fp = fopen(DOCROOT_DIR "/404.html", "rb");
-      fread(file_buffer, BUFFER_SIZE, 1, fp);
-      sprintf(send_header, "HTTP/1.1 404 File Not Found\r\n"
-                           "Server: " VERSION_STRING "\r\n"
-                           "Content-Type: text/html\r\n"
-                           "Content-Length: %zu\r\n"
-                           "\r\n"
-                           "%s\r\n", strlen(file_buffer), file_buffer);
-    }
-    else {
-      fread(file_buffer, BUFFER_SIZE, 1, fp);
-      sprintf(send_header, "HTTP/1.1 200 OK\r\n"
-                           "Server: " VERSION_STRING "\r\n"
-                           "Content-Type: %s\r\n"
-                           "Content-Length: %zu\r\n"
-                           "\r\n"
-                           "%s\r\n", mime_type, strlen(file_buffer), file_buffer);
+      send_header = generate_send_header("404 File Not Found", "text/html");
+
+    } else {
+
+      /* Serve up a 200 */
+      send_header = generate_send_header("200 OK", mime_type);
 
     }
 
-    write(comm_fd, send_header, strlen(send_header)+1);
+    /* Read file and send data to socket */
+    fread(file_buffer, BUFFER_SIZE, 1, fp);
+    sprintf(send_header_buffer, "HTTP/1.1 %s\r\n"
+                                "Server: " VERSION_STRING "\r\n"
+                                "Content-Type: %s\r\n"
+                                "Content-Length: %zu\r\n"
+                                "\r\n"
+                                "%s\r\n", send_header->status, send_header->content_type, strlen(file_buffer), file_buffer);
+
+    write(comm_fd, send_header_buffer, strlen(send_header_buffer)+1);
 
   }
 }
