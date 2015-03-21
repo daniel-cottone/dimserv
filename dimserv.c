@@ -222,17 +222,26 @@ int main(int argc, char ** argv) {
 		long size = ftell(fp);
 		fseek(fp, 0L, SEEK_SET);
 
-    /* Read file and send data to socket */
-    fread(file_buffer, 1, BUFFER_SIZE-1, fp);
-    fclose(fp);
+    /* Format and send header to socket */
     sprintf(send_header_buffer, "HTTP/1.1 %s\r\n"
                                 "Server: " VERSION_STRING "\r\n"
                                 "Content-Type: %s\r\n"
-                                "Content-Length: %zu\r\n"
-                                "\r\n"
-                                "%s\r\n", send_header->status, send_header->content_type, strlen(file_buffer), file_buffer);
+                                "Content-Length: %lu\r\n"
+                                "\r\n", send_header->status, send_header->content_type, size);
 
     write(comm_fd, send_header_buffer, strlen(send_header_buffer)+1);
+
+    /* Read file and send data to socket */
+    fflush(stdout);
+    while (!feof(fp)) {
+      size_t read_size = fread(file_buffer, 1, BUFFER_SIZE-1, fp);
+      write(comm_fd, file_buffer, read_size);
+      memset(file_buffer, 0, BUFFER_SIZE);
+    }
+
+    /* Send final CR to socket */
+    write(comm_fd, "\r\n", strlen("\r\n"));
+    fflush(stdout);
 
   }
 }
