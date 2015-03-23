@@ -127,9 +127,12 @@ typedef struct {
  char * get_mime_type(char * filename) {
 
    char * mime_type;
-   char * ext = strstr(filename, ".");
+   char *ext;
 
-   if (!strcmp(ext, ".html")) {
+   if ((ext = strstr(filename, ".")) == NULL) {
+     mime_type = "text/unknown";
+   }
+   else if (!strcmp(ext, ".html")) {
      mime_type = "text/html";
    }
    else if (!strcmp(ext, ".css")) {
@@ -201,6 +204,7 @@ int main(int argc, char ** argv) {
     // Process raw header
     recv_header = process_recv_header(recv_header_buffer);
     printf("[info] Received request: %s\r\n", recv_header->filename);
+    //printf("[debug] Raw header: %s\r\n", recv_header_buffer);
 
     // Get MIME type
     char * mime_type;
