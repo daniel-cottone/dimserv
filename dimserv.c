@@ -53,7 +53,7 @@ typedef struct {
    /*
    * Process header using pos as token index
    */
-   token = strtok(recv_header_buffer, " \n");
+   token = strtok(recv_header_buffer, " \r\n");
    while (token != NULL) {
      switch(pos) {
 
