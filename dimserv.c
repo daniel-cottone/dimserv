@@ -219,8 +219,8 @@ int main(int argc, char ** argv) {
 
     /* Get size of file */
     fseek(fp, 0L, SEEK_END);
-		long size = ftell(fp);
-		fseek(fp, 0L, SEEK_SET);
+    long size = ftell(fp);
+    fseek(fp, 0L, SEEK_SET);
 
     /* Format and send header to socket */
     sprintf(send_header_buffer, "HTTP/1.1 %s\r\n"
@@ -229,7 +229,7 @@ int main(int argc, char ** argv) {
                                 "Content-Length: %lu\r\n"
                                 "\r\n", send_header->status, send_header->content_type, size);
 
-    write(comm_fd, send_header_buffer, strlen(send_header_buffer)+1);
+    write(comm_fd, send_header_buffer, strlen(send_header_buffer));
 
     /* Read file and send data to socket */
     fflush(stdout);
