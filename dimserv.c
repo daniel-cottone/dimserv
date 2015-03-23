@@ -197,11 +197,10 @@ int main(int argc, char ** argv) {
 
     /* Receive data from socket */
     read(comm_fd, recv_header_buffer, HEADER_SIZE);
-    printf("Received request - %s", recv_header_buffer);
 
     // Process raw header
     recv_header = process_recv_header(recv_header_buffer);
-    //printf("Recv_header data: %s %s %s\r\n", recv_header->method, recv_header->filename, recv_header->http_version);
+    printf("[info] Received request: %s\r\n", recv_header->filename);
 
     // Get MIME type
     char * mime_type;
@@ -222,7 +221,7 @@ int main(int argc, char ** argv) {
     if (!fp) {
 
       /* Serve up a 404 */
-      printf("Could not open file: %s\r\n", file_path);
+      printf("[error] Could not open file: %s\r\n", file_path);
       fp = fopen(DOCROOT_DIR "/404.html", "rb");
       send_header = generate_send_header("404 File Not Found", "text/html");
 
