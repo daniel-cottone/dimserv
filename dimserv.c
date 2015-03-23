@@ -150,25 +150,41 @@ typedef struct {
 
 int main(int argc, char ** argv) {
 
-  /* Connection variables */
+  /* Server variables */
   char recv_header_buffer[HEADER_SIZE], send_header_buffer[HEADER_SIZE];
   int listen_fd, comm_fd;
+  int server_port = SERVER_PORT;
+  int _true = 1;
+  int _false = 0;
   struct sockaddr_in servaddr;
   recv_header_t * recv_header;
   send_header_t * send_header;
 
-  /* Initialize data structures */
+  /* Initialize socket structures */
   memset(&servaddr, 0, sizeof(servaddr));
-  listen_fd = socket(AF_INET, SOCK_STREAM, 0);
-
   servaddr.sin_family = AF_INET;
   servaddr.sin_addr.s_addr = htons(INADDR_ANY);
-  servaddr.sin_port = htons(SERVER_PORT);
+  servaddr.sin_port = htons(server_port);
+  listen_fd = socket(AF_INET, SOCK_STREAM, 0);
 
-  bind(listen_fd, (struct sockaddr *) &servaddr, sizeof(servaddr));
+  /* Set socket re-use option */
+  if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &_true, sizeof(int)) < 0) {
+    printf("[fatal] Could not set socket option: SO_REUSEADDR\r\n");
+    close(listen_fd);
+    return -1;
+  }
 
-  listen(listen_fd, 10);
+  /* Bind socket to port */
+  if (bind(listen_fd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
+    printf("[fatal] Could not bind socket to port: %d\r\n", server_port);
+    return -1;
+  }
 
+  /* Listen for incoming connections */
+  printf("[info] Server version: " VERSION_STRING "\r\n");
+  printf("[info] Document root: " DOCROOT_DIR "\r\n");
+  printf("[info] Listening on port: %d\r\n", server_port);
+  listen(listen_fd, 50);
   comm_fd = accept(listen_fd, (struct sockaddr*) NULL, NULL);
 
   while(1) {
