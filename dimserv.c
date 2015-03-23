@@ -199,7 +199,10 @@ int main(int argc, char ** argv) {
     memset(&send_header, 0, sizeof(send_header));
 
     /* Receive data from socket */
-    read(comm_fd, recv_header_buffer, HEADER_SIZE);
+    if (read(comm_fd, recv_header_buffer, HEADER_SIZE) < 1) {
+      printf("[warn] Error reading from socket\r\n");
+      break;
+    }
 
     // Process raw header
     recv_header = process_recv_header(recv_header_buffer);
