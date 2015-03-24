@@ -1,8 +1,9 @@
 /*
  * A very dim web server.
  */
-#include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <netdb.h>
 #include <regex.h>
 #include <stdio.h>
@@ -185,6 +186,7 @@ int main(int argc, char ** argv) {
   int _true = 1;
   int _false = 0;
   struct sockaddr_in servaddr;
+  struct stat _stat;
   recv_header_t * recv_header;
   send_header_t * send_header;
 
@@ -208,6 +210,12 @@ int main(int argc, char ** argv) {
     return -1;
   }
 
+  /* Check DOCROOT_DIR is accessible */
+  if (stat(DOCROOT_DIR, &_stat) != 0 || !(S_ISDIR(_stat.st_mode))) {
+    printf("[fatal] Could not open DOCROOT_DIR: " DOCROOT_DIR "\r\n");
+    return -1;
+  }
+
   /* Listen for incoming connections */
   printf("[info] Server version: " VERSION_STRING "\r\n");
   printf("[info] Document root: " DOCROOT_DIR "\r\n");
@@ -223,72 +231,77 @@ int main(int argc, char ** argv) {
     memset(&recv_header, 0, sizeof(recv_header));
     memset(&send_header, 0, sizeof(send_header));
 
-    /* Receive data from socket */
+    /* Check for data from socket */
     if (read(comm_fd, recv_header_buffer, HEADER_SIZE) < 1) {
-      printf("[warn] Error reading from socket\r\n");
+
+      // Null received from socket
+      printf("[warn] Unable to read from socket\r\n");
       break;
-    }
-
-    // Process raw header
-    recv_header = process_recv_header(recv_header_buffer);
-    printf("[info] Received request: %s\r\n", recv_header->filename);
-    //printf("[debug] Raw header: %s\r\n", recv_header_buffer);
-
-    // Get MIME type
-    char * mime_type;
-    mime_type = get_mime_type(recv_header->filename);
-
-    /* Get the relative file path */
-    char * file_path = calloc(sizeof(char) * (strlen(DOCROOT_DIR) + strlen(recv_header->filename) + 2), 1);
-    strcat(file_path, DOCROOT_DIR);
-    strcat(file_path, recv_header->filename);
-
-    /* Create file buffer, pointer, and open file */
-    char file_buffer[BUFFER_SIZE];
-    memset(file_buffer, 0, BUFFER_SIZE);
-    FILE * fp;
-    fp = fopen(file_path, "rb");
-
-    /* Check if the file was opened */
-    if (!fp) {
-
-      /* Serve up a 404 */
-      printf("[error] Could not open file: %s\r\n", file_path);
-      fp = fopen(DOCROOT_DIR "/404.html", "rb");
-      send_header = generate_send_header("404 File Not Found", "text/html");
-
-    } else {
-
-      /* Serve up a 200 */
-      send_header = generate_send_header("200 OK", mime_type);
 
     }
+    else {
 
-    /* Get size of file */
-    fseek(fp, 0L, SEEK_END);
-    long size = ftell(fp);
-    fseek(fp, 0L, SEEK_SET);
+      // Process raw header from socket
+      recv_header = process_recv_header(recv_header_buffer);
+      printf("[info] Received request: %s\r\n", recv_header->filename);
+      //printf("[debug] Raw header: %s\r\n", recv_header_buffer);
 
-    /* Format and send header to socket */
-    sprintf(send_header_buffer, "HTTP/1.1 %s\r\n"
-                                "Server: " VERSION_STRING "\r\n"
-                                "Content-Type: %s\r\n"
-                                "Content-Length: %lu\r\n"
-                                "\r\n", send_header->status, send_header->content_type, size);
+      // Get MIME type
+      char * mime_type;
+      mime_type = get_mime_type(recv_header->filename);
 
-    write(comm_fd, send_header_buffer, strlen(send_header_buffer));
+      /* Get the relative file path */
+      char * file_path = calloc(sizeof(char) * (strlen(DOCROOT_DIR) + strlen(recv_header->filename) + 2), 1);
+      strcat(file_path, DOCROOT_DIR);
+      strcat(file_path, recv_header->filename);
 
-    /* Read file and send data to socket */
-    fflush(stdout);
-    while (!feof(fp)) {
-      size_t read_size = fread(file_buffer, 1, BUFFER_SIZE-1, fp);
-      write(comm_fd, file_buffer, read_size);
+      /* Create file buffer, pointer, and open file */
+      char file_buffer[BUFFER_SIZE];
       memset(file_buffer, 0, BUFFER_SIZE);
+      FILE * fp;
+      fp = fopen(file_path, "rb");
+
+      /* Check if the file was opened */
+      if (!fp) {
+
+        /* Serve up a 404 */
+        printf("[error] Could not open file: %s\r\n", file_path);
+        fp = fopen(DOCROOT_DIR "/404.html", "rb");
+        send_header = generate_send_header("404 File Not Found", "text/html");
+
+      } else {
+
+        /* Serve up a 200 */
+        send_header = generate_send_header("200 OK", mime_type);
+
+      }
+
+      /* Get size of file */
+      fseek(fp, 0L, SEEK_END);
+      long size = ftell(fp);
+      fseek(fp, 0L, SEEK_SET);
+
+      /* Format and send header to socket */
+      sprintf(send_header_buffer, "HTTP/1.1 %s\r\n"
+                                  "Server: " VERSION_STRING "\r\n"
+                                  "Content-Type: %s\r\n"
+                                  "Content-Length: %lu\r\n"
+                                  "\r\n", send_header->status, send_header->content_type, size);
+
+      write(comm_fd, send_header_buffer, strlen(send_header_buffer));
+
+      /* Read file and send data to socket */
+      fflush(stdout);
+      while (!feof(fp)) {
+        size_t read_size = fread(file_buffer, 1, BUFFER_SIZE-1, fp);
+        write(comm_fd, file_buffer, read_size);
+        memset(file_buffer, 0, BUFFER_SIZE);
+      }
+
+      /* Send final CR to socket */
+      write(comm_fd, "\r\n", strlen("\r\n"));
+      fflush(stdout);
+
     }
-
-    /* Send final CR to socket */
-    write(comm_fd, "\r\n", strlen("\r\n"));
-    fflush(stdout);
-
   }
 }
