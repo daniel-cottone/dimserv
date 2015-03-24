@@ -15,6 +15,7 @@
  */
 #define SERVER_PORT     22000
 #define DOCROOT_DIR     "docroot"
+#define MIME_CONFIG     "mime_types.conf"
 #define VERSION_STRING  "dimserv/0.0.1"
 
 /*
@@ -151,10 +152,34 @@ typedef struct {
    return mime_type;
  }
 
+ /*
+  * Load MIME types from configuration file
+  */
+void load_mime_types(char ** mime_types) {
+
+  // Open MIME configuration file
+  FILE * fp;
+  fp = fopen(MIME_CONFIG, "rb");
+
+  // Produce error if unable to open file
+  if (!fp) {
+    printf("[error] Could not open MIME types configuration file!\r\n");
+    return;
+  } else {
+
+    // Read file into mime_types
+    while (!feof(fp)) {
+      // Stuff goes here
+    }
+  }
+
+}
+
 int main(int argc, char ** argv) {
 
   /* Server variables */
   char recv_header_buffer[HEADER_SIZE], send_header_buffer[HEADER_SIZE];
+  char ** mime_types[2];
   int listen_fd, comm_fd;
   int server_port = SERVER_PORT;
   int _true = 1;
