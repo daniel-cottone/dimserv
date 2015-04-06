@@ -232,19 +232,11 @@ int main(int argc, char ** argv) {
     memset(&send_header, 0, sizeof(send_header));
 
     /* Check for data from socket */
-    if (read(comm_fd, recv_header_buffer, HEADER_SIZE) < 1) {
-
-      // Null received from socket
-      printf("[warn] Unable to read from socket\r\n");
-      break;
-
-    }
-    else {
+    if (!read(comm_fd, recv_header_buffer, HEADER_SIZE) < 1) {
 
       // Process raw header from socket
       recv_header = process_recv_header(recv_header_buffer);
       printf("[info] Received request: %s\r\n", recv_header->filename);
-      //printf("[debug] Raw header: %s\r\n", recv_header_buffer);
 
       // Get MIME type
       char * mime_type;
