@@ -42,6 +42,16 @@ typedef struct {
   char * content_length;
 } send_header_t;
 
+struct request {
+  int fd;                   // Socket pointer
+  struct sockaddr_in addr;  // Address
+  socklen_t length;         // Address length
+  pthread_t thread;         // Request thread
+};
+
+int _true = 1;
+int _false = 0;
+
 /*
  * Process received headers and return a recv_header_t
  */
@@ -52,9 +62,7 @@ typedef struct {
    char * token;
    int pos = 0;
 
-   /*
-   * Process header using pos as token index
-   */
+   // Process header using pos as token index
    token = strtok(recv_header_buffer, " \r\n");
    while (token != NULL) {
      switch(pos) {
@@ -183,8 +191,6 @@ int main(int argc, char ** argv) {
   char ** mime_types[2];
   int listen_fd, comm_fd;
   int server_port = SERVER_PORT;
-  int _true = 1;
-  int _false = 0;
   struct sockaddr_in servaddr;
   struct stat _stat;
   recv_header_t * recv_header;
