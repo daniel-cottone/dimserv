@@ -16,7 +16,7 @@
  */
 #define SERVER_PORT     22000
 #define DOCROOT_DIR     "docroot"
-#define MIME_CONFIG     "mime_types.conf"
+#define MIME_CONFIG     "mime.conf"
 #define VERSION_STRING  "dimserv/0.0.1"
 
 /*
@@ -24,6 +24,7 @@
  */
 #define HEADER_SIZE     10240L
 #define BUFFER_SIZE     10240L
+#define LINE_SIZE       1024L
 
 /*
  * Data configuration
@@ -51,144 +52,147 @@ struct request {
 
 int _true = 1;
 int _false = 0;
+char * mime_types[][2];
 
 /*
  * Process received headers and return a recv_header_t
  */
- recv_header_t * process_recv_header(char * recv_header_buffer) {
+recv_header_t * process_recv_header(char * recv_header_buffer) {
 
-   // Return header, token, and token index
-   recv_header_t* h = (recv_header_t *) malloc(sizeof(recv_header_t));
-   char * token;
-   int pos = 0;
+  // Return header, token, and token index
+  recv_header_t* h = (recv_header_t *) malloc(sizeof(recv_header_t));
+  char * token;
+  int pos = 0;
 
-   // Process header using pos as token index
-   token = strtok(recv_header_buffer, " \r\n");
-   while (token != NULL) {
-     switch(pos) {
+  // Process header using pos as token index
+  token = strtok(recv_header_buffer, " \r\n");
+  while (token != NULL) {
+    switch(pos) {
 
-       // Process method
-       case 0:
-       if (!strcmp(token, "GET")) {
-         h->method = "GET";
-       }
-       else if (!strcmp(token, "POST")) {
-         h->method = "POST";
-       }
-       break;
+      // Process method
+      case 0:
+      if (!strcmp(token, "GET")) {
+        h->method = "GET";
+      }
+      else if (!strcmp(token, "POST")) {
+        h->method = "POST";
+      }
+      break;
 
-       // Process filename
-       case 1:
-       if (!strcmp(token, "/")) {
-         h->filename = "/index.html";
-       }
-       else {
-         h->filename = token;
-       }
-       break;
+      // Process filename
+      case 1:
+      if (!strcmp(token, "/")) {
+        h->filename = "/index.html";
+      }
+      else {
+        h->filename = token;
+      }
+      break;
 
-       // Process HTTP version
-       case 2:
-       h->http_version = token;
-       break;
+      // Process HTTP version
+      case 2:
+      h->http_version = token;
+      break;
 
-       // Process host
-       case 4:
-       h->host = token;
-       break;
+      // Process host
+      case 4:
+      h->host = token;
+      break;
 
-       // Default
-       default:
-       break;
+      // Default
+      default:
+      break;
 
-     }
+    }
 
-     // DEBUG
-     //printf("Token: %s\r\n", token);
+    // DEBUG
+    //printf("Token: %s\r\n", token);
 
-     // Move token index and get next token
-     pos = pos+1;
-     token = strtok(NULL, " \n");
-   }
+    // Move token index and get next token
+    pos = pos+1;
+    token = strtok(NULL, " \r\n");
+  }
 
-   // Return the processed header
-   return h;
- }
+  // Return the processed header
+  return h;
+}
 
- /*
-  * Generate a send_header_t
-  */
- send_header_t * generate_send_header(char * status, char * content_type) {
+/*
+ * Generate a send_header_t
+ */
+send_header_t * generate_send_header(char * status, char * content_type) {
 
-   // Return header
-   send_header_t* h = (send_header_t *) malloc(sizeof(send_header_t));
+  // Return header
+  send_header_t* h = (send_header_t *) malloc(sizeof(send_header_t));
 
-   // Set header information
-   h->status = status;
-   h->server = VERSION_STRING;
-   h->content_type = content_type;
+  // Set header information
+  h->status = status;
+  h->server = VERSION_STRING;
+  h->content_type = content_type;
 
-   return h;
- }
+  return h;
+}
 
- /*
-  * Generate MIME type from file extension
-  */
- char * get_mime_type(char * filename) {
+/*
+ * Generate MIME type from file extension
+ */
+char * get_mime_type(char * filename) {
 
-   char * mime_type;
-   char *ext;
+  char * mime_type;
+  char * ext;
 
-   if ((ext = strstr(filename, ".")) == NULL) {
-     mime_type = "text/unknown";
-   }
-   else if (!strcmp(ext, ".html")) {
-     mime_type = "text/html";
-   }
-   else if (!strcmp(ext, ".css")) {
-     mime_type = "text/css";
-   }
-   else if (!strcmp(ext, ".ico")) {
-     mime_type = "image/x-icon";
-   }
-   else if (!strcmp(ext, ".png")) {
-     mime_type = "image/png";
-   }
-   else {
-     mime_type = "text/unknown";
-   }
+  if ((ext = strstr(filename, ".")) == NULL) {
+    mime_type = "text/unknown";
+  } else {
+    // Iterate through mime_types list
+    for (int i=0; mime_types[i][0] != NULL; i++) {
+      if (!strcmp(ext, mime_types[i][0])) {
+        mime_type = mime_types[i][0];
+      }
+    }
+  }
 
-   return mime_type;
- }
+  return mime_type;
+}
 
- /*
-  * Load MIME types from configuration file
-  */
-void load_mime_types(char ** mime_types) {
+/*
+ * Load MIME types from configuration file
+ */
+int load_mime_types() {
 
   // Open MIME configuration file
   FILE * fp;
   fp = fopen(MIME_CONFIG, "rb");
+  char line[LINE_SIZE];
+  int line_count = 0;
 
-  // Produce error if unable to open file
+  // Return error if unable to open file
   if (!fp) {
-    printf("[error] Could not open MIME types configuration file!\r\n");
-    return;
+    return -1;
   } else {
 
     // Read file into mime_types
-    while (!feof(fp)) {
+    while (fgets(line, sizeof(line), fp) != NULL) {
       // Stuff goes here
+      char * token;
+      token = strtok(line, " \t\r\n");
+      mime_types[line_count][0] = token;
+      token = strtok(NULL, " \t\r\n");
+      mime_types[line_count][1] = token;
+      line_count++;
     }
   }
 
+  return 1;
 }
 
+/*
+ * Main program logic
+ */
 int main(int argc, char ** argv) {
 
   /* Server variables */
   char recv_header_buffer[HEADER_SIZE], send_header_buffer[HEADER_SIZE];
-  char ** mime_types[2];
   int listen_fd, comm_fd;
   int server_port = SERVER_PORT;
   struct sockaddr_in servaddr;
@@ -219,6 +223,12 @@ int main(int argc, char ** argv) {
   /* Check DOCROOT_DIR is accessible */
   if (stat(DOCROOT_DIR, &_stat) != 0 || !(S_ISDIR(_stat.st_mode))) {
     printf("[fatal] Could not open DOCROOT_DIR: " DOCROOT_DIR "\r\n");
+    return -1;
+  }
+
+  /* Load MIME types from configuration file */
+  if (load_mime_types() != 1) {
+    printf("[fatal] Could not load MIME types from configuration file: " MIME_CONFIG "\r\n");
     return -1;
   }
 
