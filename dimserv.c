@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <netdb.h>
 #include <regex.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -187,18 +188,23 @@ int load_mime_types() {
 }
 
 /*
+ * Handle server shutdown
+ */
+void handle_shutdown(int sig) {
+  printf("\r\n[info] Shutting down.\r\n");
+  exit(sig);
+}
+
+/*
  * Main program logic
  */
 int main(int argc, char ** argv) {
 
   /* Server variables */
-  char recv_header_buffer[HEADER_SIZE], send_header_buffer[HEADER_SIZE];
-  int listen_fd, comm_fd;
   int server_port = SERVER_PORT;
+  int listen_fd, comm_fd;
   struct sockaddr_in servaddr;
   struct stat _stat;
-  recv_header_t * recv_header;
-  send_header_t * send_header;
 
   /* Initialize socket structures */
   memset(&servaddr, 0, sizeof(servaddr));
@@ -239,9 +245,15 @@ int main(int argc, char ** argv) {
   listen(listen_fd, 50);
   comm_fd = accept(listen_fd, (struct sockaddr*) NULL, NULL);
 
+  /* Handle server shutdown */
+  signal(SIGINT, handle_shutdown);
+
   while(1) {
 
     /* Initialize buffers and structures */
+    char recv_header_buffer[HEADER_SIZE], send_header_buffer[HEADER_SIZE];
+    recv_header_t * recv_header;
+    send_header_t * send_header;
     memset(recv_header_buffer, 0, HEADER_SIZE);
     memset(send_header_buffer, 0, HEADER_SIZE);
     memset(&recv_header, 0, sizeof(recv_header));
