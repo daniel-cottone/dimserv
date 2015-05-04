@@ -191,7 +191,7 @@ int load_mime_types() {
  * Handle server shutdown
  */
 void handle_shutdown(int sig) {
-  printf("\r\n[info] Shutting down.\r\n");
+  printf("[info] Shutting down.\r\n");
   exit(sig);
 }
 
@@ -322,6 +322,9 @@ int main(int argc, char ** argv) {
       write(comm_fd, "\r\n", strlen("\r\n"));
       fflush(stdout);
 
+      /* Cleanup */
+      free(recv_header);
+      free(send_header);
     }
   }
 }
