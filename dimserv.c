@@ -285,7 +285,7 @@ int main(int argc, char ** argv) {
       if (!fp) {
 
         /* Serve up a 404 */
-        printf("[error] Could not open file: %s\r\n", file_path);
+        printf("[error] Could not open file: %s\r\n", recv_header->filename);
         fp = fopen(DOCROOT_DIR "/404.html", "rb");
         send_header = generate_send_header("404 File Not Found", "text/html");
 
