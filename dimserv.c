@@ -273,7 +273,7 @@ int main(int argc, char ** argv) {
       char * length = malloc(sizeof(char) * LINE_SIZE);
 
       /* Get the relative file path */
-      char * file_path = calloc(sizeof(char) * (strlen(DOCROOT_DIR) + strlen(recv_header->filename) + 2), 1);
+      char * file_path = malloc(sizeof(char) * (strlen(DOCROOT_DIR) + strlen(recv_header->filename) + 2));
       strcat(file_path, DOCROOT_DIR);
       strcat(file_path, recv_header->filename);
 
