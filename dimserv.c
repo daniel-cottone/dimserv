@@ -44,13 +44,6 @@ typedef struct {
   char * content_length;
 } send_header_t;
 
-struct request {
-  int fd;                   // Socket pointer
-  struct sockaddr_in addr;  // Address
-  socklen_t length;         // Address length
-  pthread_t thread;         // Request thread
-};
-
 int _true = 1;
 int _false = 0;
 char * mime_types[][2];
@@ -191,9 +184,107 @@ int load_mime_types() {
 /*
  * Handle server shutdown
  */
-void handle_shutdown(int sig) {
+void shutdown_handler(int sig) {
   printf("[info] Shutting down.\r\n");
   exit(sig);
+}
+
+/*
+ * Handle client request
+ */
+void * request_handler(void * socket_desc) {
+
+  /* Create socket from socket_desc */
+  int sock = *(int*)socket_desc;
+
+  /* Initialize buffers and structures */
+  char recv_header_buffer[HEADER_SIZE], send_header_buffer[HEADER_SIZE];
+  recv_header_t * recv_header;
+  send_header_t * send_header;
+  memset(recv_header_buffer, 0, HEADER_SIZE);
+  memset(send_header_buffer, 0, HEADER_SIZE);
+  memset(&recv_header, 0, sizeof(recv_header));
+  memset(&send_header, 0, sizeof(send_header));
+
+  /* Check for data from socket */
+  if (!read(sock, recv_header_buffer, HEADER_SIZE) < 1) {
+
+    /* Process raw header from socket */
+    recv_header = process_recv_header(recv_header_buffer);
+    printf("[info] Received request: %s\r\n", recv_header->filename);
+
+    /* Get MIME type, initialize status */
+    char * mime_type = get_mime_type(recv_header->filename);
+    char * status = malloc(sizeof(char) * LINE_SIZE);
+    char * length = malloc(sizeof(char) * LINE_SIZE);
+
+    /* Get the relative file path */
+    char * file_path = malloc(sizeof(char) * (strlen(DOCROOT_DIR) + strlen(recv_header->filename) + 2));
+    strcat(file_path, DOCROOT_DIR);
+    strcat(file_path, recv_header->filename);
+
+    /* Create file buffer, pointer, and open file */
+    char file_buffer[BUFFER_SIZE];
+    memset(file_buffer, 0, BUFFER_SIZE);
+    FILE * fp;
+    fp = fopen(file_path, "rb");
+
+    /* Check if the file was opened */
+    if (!fp) {
+
+      /* Serve up a 404 */
+      printf("[error] Could not open file: %s\r\n", recv_header->filename);
+      fp = fopen(DOCROOT_DIR "/404.html", "rb");
+      sprintf(status, "%s", "404 File Not Found");
+      sprintf(mime_type, "%s", "text/html");
+
+    } else {
+
+      /* Serve up a 200 */
+      sprintf(status, "%s", "200 OK");
+
+    }
+
+    /* Get size of file */
+    fseek(fp, 0L, SEEK_END);
+    long size = ftell(fp);
+    fseek(fp, 0L, SEEK_SET);
+    sprintf(length, "%lu", size);
+
+    /* Generate a send header */
+    send_header = generate_send_header(status, mime_type, length);
+
+    /* Format and send header to socket */
+    sprintf(send_header_buffer, "HTTP/1.1 %s\r\n"
+                                "Server: " VERSION_STRING "\r\n"
+                                "Content-Type: %s\r\n"
+                                "Content-Length: %s\r\n"
+                                "\r\n", send_header->status, send_header->content_type, send_header->content_length);
+
+    write(sock, send_header_buffer, strlen(send_header_buffer));
+
+    /* Read file and send data to socket */
+    fflush(stdout);
+    while (!feof(fp)) {
+      size_t read_size = fread(file_buffer, 1, BUFFER_SIZE-1, fp);
+      write(sock, file_buffer, read_size);
+      memset(file_buffer, 0, BUFFER_SIZE);
+    }
+
+    /* Send final CR to socket */
+    write(sock, "\r\n", strlen("\r\n"));
+    fflush(stdout);
+
+    /* Cleanup */
+    free(recv_header);
+    free(send_header);
+    free(status);
+    free(length);
+    free(file_path);
+    free(socket_desc);
+  }
+
+  return 0;
 }
 
 /*
@@ -253,102 +344,28 @@ int main(int argc, char ** argv) {
   }
 
   /* Listen for incoming connections */
-  printf("------------------------------------------------------------\r\n");
+  printf("--------------------------------------------------\r\n");
   printf("[info] Server version: " VERSION_STRING "\r\n");
   printf("[info] Document root: " DOCROOT_DIR "\r\n");
   printf("[info] Listening on port: %d\r\n", server_port);
   listen(listen_fd, 50);
-  comm_fd = accept(listen_fd, (struct sockaddr*) NULL, NULL);
 
   /* Handle server shutdown */
-  signal(SIGINT, handle_shutdown);
+  signal(SIGINT, shutdown_handler);
 
-  while(1) {
+  /* Accept incoming connections and pass them to a new thread */
+  while((comm_fd = accept(listen_fd, (struct sockaddr*) NULL, NULL))) {
 
-    /* Initialize buffers and structures */
-    char recv_header_buffer[HEADER_SIZE], send_header_buffer[HEADER_SIZE];
-    recv_header_t * recv_header;
-    send_header_t * send_header;
-    memset(recv_header_buffer, 0, HEADER_SIZE);
-    memset(send_header_buffer, 0, HEADER_SIZE);
-    memset(&recv_header, 0, sizeof(recv_header));
-    memset(&send_header, 0, sizeof(send_header));
-
-    /* Check for data from socket */
-    if (!read(comm_fd, recv_header_buffer, HEADER_SIZE) < 1) {
-
-      // Process raw header from socket
-      recv_header = process_recv_header(recv_header_buffer);
-      printf("[info] Received request: %s\r\n", recv_header->filename);
-
-      // Get MIME type, initialize status
-      char * mime_type = get_mime_type(recv_header->filename);
-      char * status = malloc(sizeof(char) * LINE_SIZE);
-      char * length = malloc(sizeof(char) * LINE_SIZE);
-
-      /* Get the relative file path */
-      char * file_path = malloc(sizeof(char) * (strlen(DOCROOT_DIR) + strlen(recv_header->filename) + 2));
-      strcat(file_path, DOCROOT_DIR);
-      strcat(file_path, recv_header->filename);
-
-      /* Create file buffer, pointer, and open file */
-      char file_buffer[BUFFER_SIZE];
-      memset(file_buffer, 0, BUFFER_SIZE);
-      FILE * fp;
-      fp = fopen(file_path, "rb");
-
-      /* Check if the file was opened */
-      if (!fp) {
-
-        /* Serve up a 404 */
-        printf("[error] Could not open file: %s\r\n", recv_header->filename);
-        fp = fopen(DOCROOT_DIR "/404.html", "rb");
-        sprintf(status, "%s", "404 File Not Found");
-        sprintf(mime_type, "%s", "text/html");
-
-      } else {
-
-        /* Serve up a 200 */
-        sprintf(status, "%s", "200 OK");
-
-      }
-
-      /* Get size of file */
-      fseek(fp, 0L, SEEK_END);
-      long size = ftell(fp);
-      fseek(fp, 0L, SEEK_SET);
-      sprintf(length, "%lu", size);
-
-      /* Generate a send header */
-      send_header = generate_send_header(status, mime_type, length);
-
-      /* Format and send header to socket */
-      sprintf(send_header_buffer, "HTTP/1.1 %s\r\n"
-                                  "Server: " VERSION_STRING "\r\n"
-                                  "Content-Type: %s\r\n"
-                                  "Content-Length: %s\r\n"
-                                  "\r\n", send_header->status, send_header->content_type, send_header->content_length);
-
-      write(comm_fd, send_header_buffer, strlen(send_header_buffer));
-
-      /* Read file and send data to socket */
-      fflush(stdout);
-      while (!feof(fp)) {
-        size_t read_size = fread(file_buffer, 1, BUFFER_SIZE-1, fp);
-        write(comm_fd, file_buffer, read_size);
-        memset(file_buffer, 0, BUFFER_SIZE);
-      }
-
-      /* Send final CR to socket */
-      write(comm_fd, "\r\n", strlen("\r\n"));
-      fflush(stdout);
-
-      /* Cleanup */
-      free(recv_header);
-      free(send_header);
-      free(status);
-      free(length);
-      free(file_path);
+    /* Create thread to handle new connection */
+    pthread_t thread;
+    int * thread_sock = malloc(1);
+    *thread_sock = comm_fd;
+    if (pthread_create(&thread, NULL, request_handler, (void*) thread_sock) < 0) {
+      printf("[fatal] Could not create thread.\r\n");
+      return -1;
     }
+
+    /* Join thread to prevent early termination */
+    //pthread_join(thread, NULL);
   }
 }
