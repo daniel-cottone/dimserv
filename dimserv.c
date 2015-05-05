@@ -212,22 +212,35 @@ int main(int argc, char ** argv) {
   servaddr.sin_family = AF_INET;
   servaddr.sin_addr.s_addr = htons(INADDR_ANY);
   servaddr.sin_port = htons(server_port);
+
+  /* Create socket */
+  printf("[info] Creating socket...\r\n");
   listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (listen_fd < 0) {
+    printf("[fatal] Unable to create socket\r\n");
+    return -1;
+  }
+  printf("[info] Socket created successfully.\r\n");
 
   /* Set socket re-use option */
+  printf("[info] Setting socket options...\r\n");
   if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &_true, sizeof(int)) < 0) {
     printf("[fatal] Could not set socket option: SO_REUSEADDR\r\n");
     close(listen_fd);
     return -1;
   }
+  printf("[info] Socket options set successfully.\r\n");
 
   /* Bind socket to port */
+  printf("[info] Binding socket...\r\n");
   if (bind(listen_fd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
     printf("[fatal] Could not bind socket to port: %d\r\n", server_port);
     return -1;
   }
+  printf("[info] Socket bound successfully.\r\n");
 
   /* Check DOCROOT_DIR is accessible */
+  printf("[info] Checking service environment...\r\n");
   if (stat(DOCROOT_DIR, &_stat) != 0 || !(S_ISDIR(_stat.st_mode))) {
     printf("[fatal] Could not open DOCROOT_DIR: " DOCROOT_DIR "\r\n");
     return -1;
@@ -240,6 +253,7 @@ int main(int argc, char ** argv) {
   }
 
   /* Listen for incoming connections */
+  printf("------------------------------------------------------------\r\n");
   printf("[info] Server version: " VERSION_STRING "\r\n");
   printf("[info] Document root: " DOCROOT_DIR "\r\n");
   printf("[info] Listening on port: %d\r\n", server_port);
