@@ -168,7 +168,6 @@ int load_mime_types() {
 
     // Read file into mime_types
     while (fgets(line, sizeof(line), fp) != NULL) {
-      // Stuff goes here
       char * token;
       token = strtok(line, " \t\r\n");
       mime_types[line_count][0] = token;
@@ -194,7 +193,7 @@ void shutdown_handler(int sig) {
  */
 void * request_handler(void * socket_desc) {
 
-  /* Create socket from socket_desc */
+  /* Create socket from socket descriptor */
   int sock = *(int*)socket_desc;
 
   /* Initialize buffers and structures */
@@ -281,9 +280,10 @@ void * request_handler(void * socket_desc) {
     free(status);
     free(length);
     free(file_path);
-    free(socket_desc);
   }
 
+  /* Free socket descriptor and exit */
+  free(socket_desc);
   return 0;
 }
 
