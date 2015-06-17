@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <netdb.h>
+#include <pthread.h>
 #include <regex.h>
 #include <signal.h>
 #include <stdio.h>
