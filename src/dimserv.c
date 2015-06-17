@@ -194,6 +194,7 @@ void shutdown_handler(int sig) {
  */
 void * request_handler(void * socket_desc) {
 
+  printf("Mime type 0: %s\r\n", mime_types[0][0]);
   /* Create socket from socket descriptor */
   int sock = *(int*)socket_desc;
 
@@ -364,7 +365,9 @@ int main(int argc, char ** argv) {
   printf("[info] Server version: " VERSION_STRING "\r\n");
   printf("[info] Document root: " DOCROOT_DIR "\r\n");
   printf("[info] Listening on port: %d\r\n", server_port);
+  printf("Mime type 0: %s\r\n", mime_types[0][0]);
   listen(listen_fd, 50);
+  printf("Mime type 0: %s\r\n", mime_types[0][0]);
 
   /* Handle server shutdown */
   signal(SIGINT, shutdown_handler);
