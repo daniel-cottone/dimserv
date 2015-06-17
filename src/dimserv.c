@@ -27,6 +27,7 @@
 #define HEADER_SIZE     10240L
 #define BUFFER_SIZE     10240L
 #define LINE_SIZE       1024L
+#define MAX_MIME_TYPES  64L
 
 /*
  * Data configuration
@@ -47,7 +48,7 @@ typedef struct {
 
 int _true = 1;
 int _false = 0;
-char * mime_types[][2];
+char * mime_types[MAX_MIME_TYPES][2];
 
 /*
  * Process received headers and return a recv_header_t
@@ -99,9 +100,6 @@ recv_header_t * process_recv_header(char * recv_header_buffer) {
       break;
 
     }
-
-    // DEBUG
-    //printf("Token: %s\r\n", token);
 
     // Move token index and get next token
     pos = pos+1;
@@ -171,9 +169,9 @@ int load_mime_types() {
     while (fgets(line, sizeof(line), fp) != NULL) {
       char * token;
       token = strtok(line, " \t\r\n");
-      mime_types[line_count][0] = token;
+      mime_types[line_count][0] = strdup(token);
       token = strtok(NULL, " \t\r\n");
-      mime_types[line_count][1] = token;
+      mime_types[line_count][1] = strdup(token);
       line_count++;
     }
   }
@@ -194,7 +192,6 @@ void shutdown_handler(int sig) {
  */
 void * request_handler(void * socket_desc) {
 
-  printf("Mime type 0: %s\r\n", mime_types[0][0]);
   /* Create socket from socket descriptor */
   int sock = *(int*)socket_desc;
 
@@ -365,9 +362,7 @@ int main(int argc, char ** argv) {
   printf("[info] Server version: " VERSION_STRING "\r\n");
   printf("[info] Document root: " DOCROOT_DIR "\r\n");
   printf("[info] Listening on port: %d\r\n", server_port);
-  printf("Mime type 0: %s\r\n", mime_types[0][0]);
   listen(listen_fd, 50);
-  printf("Mime type 0: %s\r\n", mime_types[0][0]);
 
   /* Handle server shutdown */
   signal(SIGINT, shutdown_handler);
