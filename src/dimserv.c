@@ -308,7 +308,7 @@ int main(int argc, char ** argv) {
 
   /* Server variables */
   int server_port = SERVER_PORT;
-  int listen_fd, comm_fd;
+  int listen_fd;
   struct sockaddr_in servaddr;
   struct stat _stat;
 
@@ -368,7 +368,8 @@ int main(int argc, char ** argv) {
   signal(SIGINT, shutdown_handler);
 
   /* Accept incoming connections and pass them to a new thread */
-  while((comm_fd = accept(listen_fd, (struct sockaddr*) NULL, NULL))) {
+  while(1) {
+    int comm_fd = accept(listen_fd, (struct sockaddr*) NULL, NULL);
 
     /* Create thread to handle new connection */
     pthread_t thread;
@@ -380,6 +381,6 @@ int main(int argc, char ** argv) {
     }
 
     /* Join thread to prevent early termination */
-    //pthread_join(thread, NULL);
+    pthread_join(thread, NULL);
   }
 }
