@@ -141,7 +141,7 @@ char * get_mime_type(char * filename) {
     // Iterate through mime_types list
     for (int i=0; mime_types[i][0] != NULL; i++) {
       if (!strcmp(ext, mime_types[i][0])) {
-        mime_type = mime_types[i][0];
+        mime_type = mime_types[i][1];
       }
     }
   }
