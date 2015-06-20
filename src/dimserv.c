@@ -287,6 +287,7 @@ void * request_handler(void * socket_desc) {
 
   /* Send final CR to socket */
   write(sock, "\r\n", strlen("\r\n"));
+  fclose(fp);
   fflush(stdout);
 
   /* Cleanup */
